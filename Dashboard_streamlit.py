@@ -53,6 +53,9 @@ from nltk.tokenize import word_tokenize
 largo = emails_df["length"]
 comment_words = ''
 stopwords = set(STOPWORDS)
+stopwords.add('subject')
+stopwords.add('Subject')
+stopwords.add('re')
 for val in emails_df['emails']:
     val = str(val)
     # split the value
