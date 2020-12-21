@@ -3,7 +3,7 @@
 import streamlit as st
 import pandas as pd
 import requests
-
+import seaborn as sns
 st.markdown(
             """
             <style>
@@ -17,7 +17,7 @@ st.markdown(
                         )
 
 URL_LOGIN = 'http://miweb-dev22.us-east-1.elasticbeanstalk.com/api-token-auth/'
-data = {'username':'facundoprueba','password':'Palmera01'}
+data = {'username':'paulaluvini_super','password':'Palmera01'}
 res_request_login = requests.post(URL_LOGIN, data)
 
 import json
@@ -32,16 +32,31 @@ n = len(query)-1
 
 for i in range(0,n):
     emails.append(query[i]['text'])
-    
-emails_df = pd.DataFrame(emails)
-emails_df.columns = ["emails"]
+
+
+results = []
+n = len(query)-1
+
+for i in range(0,n):
+        results.append(query[i]['result'])
+
+dates = []
+dates2 = []
+n = len(query)-1
+for i in range(0,n):
+    dates.append(query[i]['created_at'])
+for d in dates:
+    dates2.append(d[0:10])
+
+emails_df = pd.DataFrame(zip(emails, results,dates2), columns = ["emails", "results", "day"])
 emails_df['length'] = emails_df['emails'].apply(len)
 
 # Sidebar
 st.sidebar.title("Dashboard con Métricas de API:")
 st.sidebar.title("Métricas")
-select = st.sidebar.selectbox('Seleccione', ['Longitud de emails', 'Nube de Palabras', 'Palabras más frecuentes'],
+select = st.sidebar.selectbox('Seleccione', ['Longitud de emails', 'Nube de Palabras', 'Palabras más frecuentes', 'Utilización de la API'],
         key='1')
+clas = st.sidebar.selectbox('Resultado', ['SPAM', 'HAM', 'ALL'], key = '1')
 
 from wordcloud import WordCloud, STOPWORDS
 import matplotlib.pyplot as plt
@@ -50,13 +65,20 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize  
 
-largo = emails_df["length"]
+if clas == 'SPAM':
+        df = emails_df[emails_df["results"] == 'SPAM']
+if clas == 'HAM':
+        df = emails_df[emails_df["results"] == 'HAM']
+if clas == 'ALL':
+        df = emails_df
+
+largo = df['length']
 comment_words = ''
 stopwords = set(STOPWORDS)
 stopwords.add('subject')
 stopwords.add('Subject')
 stopwords.add('re')
-for val in emails_df['emails']:
+for val in df['emails']:
     val = str(val)
     # split the value
     tokens = val.split()
@@ -94,7 +116,6 @@ mas_frecuentes = pd.DataFrame()
 mas_frecuentes['palabra'] = palabra
 mas_frecuentes['cantidad'] = cantidad
 
-
 st.title("Clasificación de emails en Spam y Ham")
 if select == 'Longitud de emails':
                 fig, ax = plt.subplots(figsize = (6,4))
@@ -126,3 +147,16 @@ if select == 'Nube de Palabras':
 if select == 'Palabras más frecuentes':
     st.header("Las 10 palabras más frecuentes")
     st.table(mas_frecuentes.assign(hack='').set_index('hack'))
+if select == 'Utilización de la API':
+    grouped = df.groupby(["day"]).size()
+    grouped = grouped.to_frame()
+    grouped = grouped.rename(columns= {0: 'counts'})
+    grouped = grouped.reset_index()
+    ax = sns.barplot(x='day', y="counts", data=grouped, color = 'forestgreen')
+    ax.set_xlabel("Día")
+    ax.set_ylabel(" ")
+    ax.set_title("Cantidad de emails consultados por día", size = 15)
+    ax.tick_params(left = False, bottom = False)
+    for ax, spine in ax.spines.items():
+            spine.set_visible(False)
+    st.pyplot()
